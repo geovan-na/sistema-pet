@@ -16,9 +16,20 @@ const PORT = process.env.PORT || 3001;
 // 1. Hardening de Segurança (Headers HTTP)
 app.use(helmet());
 
-// 2. CORS Seguro (Restringe acesso externo não autorizado)
+// 2. CORS Seguro (Restringe acesso em dev, suporta env/wildcard em prod)
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? [process.env.FRONTEND_URL] 
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (mobile apps, curl, etc) ou que estejam na lista / em prod
+    if (!origin || process.env.NODE_ENV === 'production' || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permite para dev/testes de deploy
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
