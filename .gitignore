@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables
+.env
+*.env
+.env.*
+
+# Build outputs
+dist/
+build/
+
+# Database / SQLite local files
+*.sqlite
+*.sqlite-journal
+backend/src/database/*.sqlite
+
+# Logs
+*.log
+
+# IDE & OS files
+.DS_Store
+.vscode/
+.idea/

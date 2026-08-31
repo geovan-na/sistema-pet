@@ -1,0 +1,25 @@
+CREATE DATABASE IF NOT EXISTS sistema_pet;
+USE sistema_pet;
+
+CREATE TABLE IF NOT EXISTS tutores (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(150) NOT NULL,
+  telefone VARCHAR(30),
+  email VARCHAR(150),
+  endereco VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  especie VARCHAR(50) NOT NULL,
+  raca VARCHAR(100),
+  sexo VARCHAR(20),
+  data_nascimento DATE,
+  peso DECIMAL(6,2),
+  observacoes TEXT,
+  tutor_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_pet_tutor FOREIGN KEY (tutor_id) REFERENCES tutores(id)
+);
