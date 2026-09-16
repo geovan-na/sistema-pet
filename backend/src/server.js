@@ -65,8 +65,17 @@ app.use((req, res) => {
 // 3. Handler Centralizado de Erros (Captura exceções do banco/código)
 app.use(errorHandler);
 
+// Prevenir queda abrupta em servidores Cloud por exceção não capturada
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.stack || err.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
