@@ -80,12 +80,11 @@ async function getConnection() {
 }
 
 async function initMysqlTables(pool) {
-  // Garantir criação e seleção do schema isolado se houver permissão
   try {
     await pool.query('CREATE DATABASE IF NOT EXISTS sistema_pet;');
     await pool.query('USE sistema_pet;');
   } catch (e) {
-    // Se a conexão já for direto no database específico, ignora a alteração de schema
+    // Ignora se não puder trocar schema
   }
 
   await pool.query(`
@@ -216,6 +215,8 @@ function createFallbackDb() {
     },
     run: async (sql, params = []) => {
       const lower = sql.toLowerCase();
+
+      // INSERT
       if (lower.includes('insert into tutores')) {
         const item = { id: nextIds.tutores++, nome: params[0], telefone: params[1], email: params[2], endereco: params[3], created_at: new Date().toISOString() };
         memory.tutores.push(item);
@@ -231,6 +232,63 @@ function createFallbackDb() {
         memory.funcionarios.push(item);
         return { lastID: item.id, changes: 1 };
       }
+
+      // UPDATE
+      if (lower.includes('update pets')) {
+        // [nome, especie, raca, sexo, data_nascimento, peso, observacoes, tutor_id, id]
+        const targetId = Number(params[params.length - 1]);
+        const idx = memory.pets.findIndex(p => p.id === targetId);
+        if (idx !== -1) {
+          memory.pets[idx] = {
+            ...memory.pets[idx],
+            nome: params[0],
+            especie: params[1],
+            raca: params[2],
+            sexo: params[3],
+            data_nascimento: params[4],
+            peso: params[5],
+            observacoes: params[6],
+            tutor_id: Number(params[7])
+          };
+          return { lastID: targetId, changes: 1 };
+        }
+        return { lastID: 0, changes: 0 };
+      }
+
+      if (lower.includes('update tutores')) {
+        // [nome, telefone, email, endereco, id]
+        const targetId = Number(params[params.length - 1]);
+        const idx = memory.tutores.findIndex(t => t.id === targetId);
+        if (idx !== -1) {
+          memory.tutores[idx] = {
+            ...memory.tutores[idx],
+            nome: params[0],
+            telefone: params[1],
+            email: params[2],
+            endereco: params[3]
+          };
+          return { lastID: targetId, changes: 1 };
+        }
+        return { lastID: 0, changes: 0 };
+      }
+
+      if (lower.includes('update funcionarios')) {
+        const targetId = Number(params[params.length - 1]);
+        const idx = memory.funcionarios.findIndex(f => f.id === targetId);
+        if (idx !== -1) {
+          memory.funcionarios[idx] = {
+            ...memory.funcionarios[idx],
+            nome: params[0],
+            email: params[1],
+            cargo: params[params.length - 3] || memory.funcionarios[idx].cargo,
+            role: params[params.length - 2] || memory.funcionarios[idx].role
+          };
+          return { lastID: targetId, changes: 1 };
+        }
+        return { lastID: 0, changes: 0 };
+      }
+
+      // DELETE
       if (lower.includes('delete from tutores')) {
         memory.tutores = memory.tutores.filter(t => t.id !== Number(params[0]));
         return { changes: 1 };
@@ -243,6 +301,7 @@ function createFallbackDb() {
         memory.funcionarios = memory.funcionarios.filter(f => f.id !== Number(params[0]));
         return { changes: 1 };
       }
+
       return { lastID: 1, changes: 1 };
     }
   };
@@ -264,14 +323,22 @@ const pool = {
       if (Array.isArray(rows) && rows.insertId !== undefined) {
         return [{ insertId: rows.insertId, affectedRows: rows.affectedRows }];
       }
+      // Para queries de UPDATE e DELETE no MySQL
+      if (rows && typeof rows === 'object' && rows.affectedRows !== undefined) {
+        return [{ insertId: rows.insertId || 0, affectedRows: rows.affectedRows }];
+      }
       return [rows];
+    } else if (conn.isSqlite) {
+      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+        const rows = await conn.db.all(sql, params);
+        return [rows];
+      } else {
+        const result = await conn.db.run(sql, params);
+        return [{ insertId: result.lastID, affectedRows: result.changes }];
+      }
     } else {
-      let sqliteSql = sql
-        .replace(/\?/g, '$param')
-        .replace(/ORDER BY nome/gi, 'ORDER BY nome')
-        .replace(/AUTO_INCREMENT/gi, 'AUTOINCREMENT');
-
-      if (sqliteSql.trim().toUpperCase().startsWith('SELECT')) {
+      // Fallback
+      if (sql.trim().toUpperCase().startsWith('SELECT')) {
         const rows = await conn.db.all(sql, params);
         return [rows];
       } else {
