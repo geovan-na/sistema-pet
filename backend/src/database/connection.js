@@ -36,8 +36,32 @@ async function getConnection() {
         };
       }
 
-      mysqlPool = mysql.createPool(config);
-      await initMysqlTables(mysqlPool);
+      try {
+        mysqlPool = mysql.createPool(config);
+        await initMysqlTables(mysqlPool);
+      } catch (poolErr) {
+        if (poolErr.code === 'ER_BAD_DB_ERROR' && mysqlUri) {
+          try {
+            const parsedUrl = new URL(mysqlUri);
+            const targetDb = parsedUrl.pathname.replace('/', '') || 'sistema_pet';
+            parsedUrl.pathname = '/defaultdb';
+            const rootConn = await mysql.createConnection({
+              uri: parsedUrl.toString(),
+              ssl: { rejectUnauthorized: false }
+            });
+            await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\``);
+            await rootConn.end();
+
+            mysqlPool = mysql.createPool(config);
+            await initMysqlTables(mysqlPool);
+          } catch (createErr) {
+            throw poolErr;
+          }
+        } else {
+          throw poolErr;
+        }
+      }
+
       console.log('Conectado ao banco Aiven MySQL com sucesso!');
       
       dbInstance = {
