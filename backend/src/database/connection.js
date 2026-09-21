@@ -373,4 +373,6 @@ const pool = {
   }
 };
 
+pool.getConnection = getConnection;
+
 module.exports = pool;

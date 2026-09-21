@@ -44,9 +44,17 @@ app.use('/api', limiter);
 
 app.use(express.json());
 
+const pool = require('./database/connection');
+
 // Rota de health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Sistema Pet API funcionando com SQLite!' });
+app.get('/api/health', async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    const dbType = conn.isMysql ? 'Aiven MySQL' : conn.isSqlite ? 'SQLite' : 'Fallback Resiliente';
+    res.json({ status: 'ok', message: 'Sistema Pet API funcionando!', dbEngine: dbType });
+  } catch (err) {
+    res.json({ status: 'ok', message: 'Sistema Pet API funcionando!', dbEngine: 'Erro ao verificar DB', error: err.message });
+  }
 });
 
 // Autenticação Real do Backend
