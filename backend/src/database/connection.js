@@ -7,7 +7,7 @@ let mysqlPool = null;
 async function getConnection() {
   if (dbInstance) return dbInstance;
 
-  // 1. Se houver variáveis do Aiven/MySQL configuradas no ambiente (MYSQL_URI ou DB_HOST remoto)
+  // 1. Se houver variáveis do Aiven/MySQL configuradas no ambiente
   const mysqlUri = process.env.MYSQL_URI || process.env.AIVEN_MYSQL_URI;
   const dbHost = process.env.DB_HOST;
 
@@ -80,6 +80,14 @@ async function getConnection() {
 }
 
 async function initMysqlTables(pool) {
+  // Garantir criação e seleção do schema isolado se houver permissão
+  try {
+    await pool.query('CREATE DATABASE IF NOT EXISTS sistema_pet;');
+    await pool.query('USE sistema_pet;');
+  } catch (e) {
+    // Se a conexão já for direto no database específico, ignora a alteração de schema
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tutores (
       id INT AUTO_INCREMENT PRIMARY KEY,
