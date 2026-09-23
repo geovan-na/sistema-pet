@@ -3,6 +3,7 @@ const fs = require('fs');
 
 let dbInstance = null;
 let mysqlPool = null;
+let lastConnError = null;
 
 const DEFAULT_AIVEN_URI = Buffer.from('bXlzcWw6Ly9hdm5hZG1pbjpBVk5TX09DN3R5Y1hKLUd1Y3VvSHYtNHZAbXlzcWwtM2I1ZDM1ZmItZ2VvdmFubmFyZXplbmRlZG9zc2FudG9zLTkzYTYuYi5haXZlbmNsb3VkLmNvbToxMzQwNS9zaXN0ZW1hX3BldA==', 'base64').toString('utf8');
 
@@ -78,7 +79,7 @@ async function getConnection() {
     };
     return dbInstance;
   } catch (err) {
-    pool.lastError = err.message || String(err);
+    lastConnError = err.message || String(err);
     console.warn('Aviso: Falha ao conectar ao Aiven MySQL. Usando SQLite fallback:', err.message);
   }
 
@@ -382,5 +383,6 @@ const pool = {
 };
 
 pool.getConnection = getConnection;
+pool.getLastError = () => lastConnError;
 
 module.exports = pool;

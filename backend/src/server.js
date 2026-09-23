@@ -51,7 +51,8 @@ app.get('/api/health', async (req, res) => {
   try {
     const conn = await pool.getConnection();
     const dbType = conn.isMysql ? 'Aiven MySQL' : conn.isSqlite ? 'SQLite' : 'Fallback Resiliente';
-    res.json({ status: 'ok', message: 'Sistema Pet API funcionando!', dbEngine: dbType, lastError: pool.lastError || null });
+    const lastErr = pool.getLastError ? pool.getLastError() : null;
+    res.json({ status: 'ok', message: 'Sistema Pet API funcionando!', dbEngine: dbType, lastError: lastErr });
   } catch (err) {
     res.json({ status: 'ok', message: 'Sistema Pet API funcionando!', dbEngine: 'Erro ao verificar DB', error: err.message });
   }
