@@ -78,6 +78,7 @@ async function getConnection() {
     };
     return dbInstance;
   } catch (err) {
+    pool.lastError = err.message || String(err);
     console.warn('Aviso: Falha ao conectar ao Aiven MySQL. Usando SQLite fallback:', err.message);
   }
 
