@@ -4,75 +4,81 @@ const fs = require('fs');
 let dbInstance = null;
 let mysqlPool = null;
 
+const DEFAULT_AIVEN_URI = Buffer.from('bXlzcWw6Ly9hdm5hZG1pbjpBVk5TX09DN3R5Y1hKLUd1Y3VvSHYtNHZAbXlzcWwtM2I1ZDM1ZmItZ2VvdmFubmFyZXplbmRlZG9zc2FudG9zLTkzYTYuYi5haXZlbmNsb3VkLmNvbToxMzQwNS9zaXN0ZW1hX3BldA==', 'base64').toString('utf8');
+
+function parseMysqlConfig() {
+  const rawUri = process.env.MYSQL_URI || process.env.AIVEN_MYSQL_URI;
+  let targetUri = DEFAULT_AIVEN_URI;
+  if (rawUri && typeof rawUri === 'string' && rawUri.trim().length > 0) {
+    const cleaned = rawUri.trim().replace(/^["']|["']$/g, '');
+    if (cleaned.startsWith('mysql://') || cleaned.startsWith('mysqls://')) {
+      targetUri = cleaned;
+    }
+  }
+
+  try {
+    const u = new URL(targetUri);
+    return {
+      host: u.hostname,
+      port: u.port ? Number(u.port) : 13405,
+      user: u.username ? decodeURIComponent(u.username) : 'avnadmin',
+      password: u.password ? decodeURIComponent(u.password) : '',
+      database: u.pathname ? u.pathname.replace('/', '') : 'sistema_pet',
+      ssl: { rejectUnauthorized: false },
+      waitForConnections: true,
+      connectionLimit: 10
+    };
+  } catch (e) {
+    const u = new URL(DEFAULT_AIVEN_URI);
+    return {
+      host: u.hostname,
+      port: Number(u.port),
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: u.pathname.replace('/', ''),
+      ssl: { rejectUnauthorized: false },
+      waitForConnections: true,
+      connectionLimit: 10
+    };
+  }
+}
+
 async function getConnection() {
   if (dbInstance) return dbInstance;
 
-  // 1. Se houver variáveis do Aiven/MySQL configuradas no ambiente ou usa a URI padrão da Aiven
-  const DEFAULT_AIVEN_URI = Buffer.from('bXlzcWw6Ly9hdm5hZG1pbjpBVk5TX09DN3R5Y1hKLUd1Y3VvSHYtNHZAbXlzcWwtM2I1ZDM1ZmItZ2VvdmFubmFyZXplbmRlZG9zc2FudG9zLTkzYTYuYi5haXZlbmNsb3VkLmNvbToxMzQwNS9zaXN0ZW1hX3BldA==', 'base64').toString('utf8');
-  const mysqlUri = process.env.MYSQL_URI || process.env.AIVEN_MYSQL_URI || DEFAULT_AIVEN_URI;
-  const dbHost = process.env.DB_HOST;
+  // 1. Tentar conectar ao Aiven MySQL
+  try {
+    const mysql = require('mysql2/promise');
+    const config = parseMysqlConfig();
 
-  if (mysqlUri || (dbHost && dbHost !== 'localhost' && dbHost !== '127.0.0.1')) {
     try {
-      const mysql = require('mysql2/promise');
-      
-      let config = {};
-      if (mysqlUri) {
-        config = {
-          uri: mysqlUri,
-          ssl: { rejectUnauthorized: false },
-          waitForConnections: true,
-          connectionLimit: 10
-        };
-      } else {
-        config = {
-          host: process.env.DB_HOST,
-          port: process.env.DB_PORT || 3306,
-          user: process.env.DB_USER || 'avnadmin',
-          password: process.env.DB_PASSWORD,
-          database: process.env.DB_NAME || 'defaultdb',
-          ssl: { rejectUnauthorized: false },
-          waitForConnections: true,
-          connectionLimit: 10
-        };
-      }
+      mysqlPool = mysql.createPool(config);
+      await initMysqlTables(mysqlPool);
+    } catch (poolErr) {
+      if (poolErr.code === 'ER_BAD_DB_ERROR') {
+        const rootConn = await mysql.createConnection({
+          ...config,
+          database: 'defaultdb'
+        });
+        await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${config.database || 'sistema_pet'}\``);
+        await rootConn.end();
 
-      try {
         mysqlPool = mysql.createPool(config);
         await initMysqlTables(mysqlPool);
-      } catch (poolErr) {
-        if (poolErr.code === 'ER_BAD_DB_ERROR' && mysqlUri) {
-          try {
-            const parsedUrl = new URL(mysqlUri);
-            const targetDb = parsedUrl.pathname.replace('/', '') || 'sistema_pet';
-            parsedUrl.pathname = '/defaultdb';
-            const rootConn = await mysql.createConnection({
-              uri: parsedUrl.toString(),
-              ssl: { rejectUnauthorized: false }
-            });
-            await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\``);
-            await rootConn.end();
-
-            mysqlPool = mysql.createPool(config);
-            await initMysqlTables(mysqlPool);
-          } catch (createErr) {
-            throw poolErr;
-          }
-        } else {
-          throw poolErr;
-        }
+      } else {
+        throw poolErr;
       }
-
-      console.log('Conectado ao banco Aiven MySQL com sucesso!');
-      
-      dbInstance = {
-        isMysql: true,
-        pool: mysqlPool
-      };
-      return dbInstance;
-    } catch (err) {
-      console.warn('Aviso: Falha ao conectar ao Aiven MySQL. Usando SQLite fallback:', err.message);
     }
+
+    console.log('Conectado ao banco Aiven MySQL com sucesso!');
+    
+    dbInstance = {
+      isMysql: true,
+      pool: mysqlPool
+    };
+    return dbInstance;
+  } catch (err) {
+    console.warn('Aviso: Falha ao conectar ao Aiven MySQL. Usando SQLite fallback:', err.message);
   }
 
   // 2. Fallback usando SQLite local / resiliente
