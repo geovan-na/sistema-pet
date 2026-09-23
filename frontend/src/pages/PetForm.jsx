@@ -25,48 +25,49 @@ function PetForm() {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    loadTutores();
-  }, []);
+    initFormData();
+  }, [id]);
 
-  async function loadTutores() {
+  async function initFormData() {
     try {
       setLoadingForm(true);
-      const data = await tutoresApi.getAll();
-      setTutores(data);
-      
-      // Se tiver ID de edição, carrega os dados do pet após carregar tutores
+      const [tutoresRes, petRes] = await Promise.allSettled([
+        tutoresApi.getAll(),
+        isEdit ? petsApi.getById(id) : Promise.resolve(null)
+      ]);
+
+      if (tutoresRes.status === 'fulfilled') {
+        setTutores(tutoresRes.value || []);
+      } else {
+        showToast('Erro ao carregar lista de tutores.', 'error');
+      }
+
       if (isEdit) {
-        await loadPet();
+        if (petRes.status === 'fulfilled' && petRes.value) {
+          const pet = petRes.value;
+          let formattedDate = '';
+          if (pet.data_nascimento) {
+            formattedDate = pet.data_nascimento.substring(0, 10);
+          }
+
+          setFormData({
+            nome: pet.nome || '',
+            especie: pet.especie || 'Cachorro',
+            raca: pet.raca || '',
+            sexo: pet.sexo || 'Macho',
+            data_nascimento: formattedDate,
+            peso: pet.peso !== null && pet.peso !== undefined ? pet.peso.toString() : '',
+            observacoes: pet.observacoes || '',
+            tutor_id: pet.tutor_id !== null && pet.tutor_id !== undefined ? pet.tutor_id.toString() : ''
+          });
+        } else {
+          showToast('Erro ao carregar dados do pet.', 'error');
+        }
       }
     } catch (e) {
-      showToast('Erro ao carregar lista de tutores.', 'error');
+      showToast('Erro ao carregar dados do formulário.', 'error');
     } finally {
       setLoadingForm(false);
-    }
-  }
-
-  async function loadPet() {
-    try {
-      const pet = await petsApi.getById(id);
-      
-      // Formata data YYYY-MM-DD para o input do tipo date
-      let formattedDate = '';
-      if (pet.data_nascimento) {
-        formattedDate = pet.data_nascimento.substring(0, 10);
-      }
-
-      setFormData({
-        nome: pet.nome || '',
-        especie: pet.especie || 'Cachorro',
-        raca: pet.raca || '',
-        sexo: pet.sexo || 'Macho',
-        data_nascimento: formattedDate,
-        peso: pet.peso !== null && pet.peso !== undefined ? pet.peso.toString() : '',
-        observacoes: pet.observacoes || '',
-        tutor_id: pet.tutor_id !== null && pet.tutor_id !== undefined ? pet.tutor_id.toString() : ''
-      });
-    } catch (e) {
-      showToast('Erro ao carregar dados do pet.', 'error');
     }
   }
 
