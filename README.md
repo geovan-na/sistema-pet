@@ -6,7 +6,7 @@
 
 * **Instituição de Ensino:** Senac
 * **Curso:** Técnico em Desenvolvimento de Sistemas
-* **Disciplina:** A ser definido pela equipe
+* **Disciplina:** Projeto Integrador
 * **Orientador:** Profº Hudson Neves
 
 ---
