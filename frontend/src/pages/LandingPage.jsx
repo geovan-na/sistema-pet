@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 /* Inline SVG icons — no emoji, no icon library */
@@ -33,6 +33,8 @@ const LogoPaw = () => (
 const featureIcons = [UserIcon, PawIcon, LinkIcon, SearchIcon, EditIcon, ShieldIcon];
 
 function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   useEffect(() => {
     const els = document.querySelectorAll('.reveal');
     const obs = new IntersectionObserver(
@@ -99,17 +101,22 @@ function LandingPage() {
       {/* Navbar */}
       <nav className="navbar">
         <div className="container">
-          <a href="#" className="logo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+          <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
             <LogoPaw /> PetGestão
           </a>
-          <div className="nav-links">
-            <a href="#funcionalidades" onClick={(e) => { e.preventDefault(); scroll('funcionalidades'); }}>Funcionalidades</a>
-            <a href="#como-funciona" onClick={(e) => { e.preventDefault(); scroll('como-funciona'); }}>Como funciona</a>
-            <a href="#filiais" onClick={(e) => { e.preventDefault(); scroll('filiais'); }}>Filiais</a>
-            <a href="#depoimentos" onClick={(e) => { e.preventDefault(); scroll('depoimentos'); }}>Depoimentos</a>
-            <Link to="/login" className="btn btn-primary">Acessar sistema</Link>
+          <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
+            <a href="#funcionalidades" onClick={(e) => { e.preventDefault(); setMenuOpen(false); scroll('funcionalidades'); }}>Funcionalidades</a>
+            <a href="#como-funciona" onClick={(e) => { e.preventDefault(); setMenuOpen(false); scroll('como-funciona'); }}>Como funciona</a>
+            <a href="#filiais" onClick={(e) => { e.preventDefault(); setMenuOpen(false); scroll('filiais'); }}>Filiais</a>
+            <a href="#depoimentos" onClick={(e) => { e.preventDefault(); setMenuOpen(false); scroll('depoimentos'); }}>Depoimentos</a>
+            <Link to="/login" className="btn btn-primary" onClick={() => setMenuOpen(false)}>Acessar sistema</Link>
           </div>
-          <button className="mobile-menu-btn" aria-label="Abrir menu">
+          <button 
+            className={`mobile-menu-btn ${menuOpen ? 'active' : ''}`} 
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-expanded={menuOpen}
+          >
             <span /><span /><span />
           </button>
         </div>

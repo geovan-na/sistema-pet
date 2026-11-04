@@ -93,7 +93,7 @@ function Layout() {
       {/* Sidebar Desktop / Tab Bar Mobile */}
       <nav className="tab-bar">
         {/* Logo visível apenas no Desktop Sidebar */}
-        <div className="logo" style={{ padding: '0 16px 20px', marginBottom: 20, borderBottom: '1px solid var(--color-border)', display: 'none' }}>
+        <div className="logo sidebar-logo">
           <LogoPaw /> PetGestão
         </div>
 
@@ -119,8 +119,8 @@ function Layout() {
         )}
 
         {/* Botão Sair visível apenas no Desktop Sidebar */}
-        <div className="btn-logout-sidebar" style={{ display: 'none' }}>
-          <button className="tab-item" onClick={handleLogout} style={{ width: '100%', textAlign: 'left' }}>
+        <div className="btn-logout-sidebar">
+          <button className="tab-item logout-btn" onClick={handleLogout} style={{ width: '100%', textAlign: 'left' }}>
             <LogoutIcon />
             <span>Sair</span>
           </button>
